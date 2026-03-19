@@ -69,3 +69,22 @@ graph TD;
 - **Mount Namespaces (`CLONE_NEWNS`)**: This was actually the very first namespace added to Linux (hence the generic name `NEWNS`). It ensures that mounting or unmounting a device inside the container does not affect the host machine.
 - **Chroot Jail**: We use `os.chroot()` to change the "apparent root" of the filesystem for the current process. Once `chroot` is called, the process cannot see or access files outside of the designated directory (e.g., `./rootfs`). It thinks `./rootfs` is the actual `/`.
 - **The /proc magic**: Linux stores process information in a virtual filesystem called `/proc`. Tools like `ps` read from here. By mounting a fresh `/proc` inside our new mount namespace, `ps` will only see the processes existing within our PID namespace. This ties Level 2 and Level 3 together!
+
+## Level 4: Cgroups (Resource Limitation)
+While namespaces isolate what a container can *see*, Cgroups (Control Groups) isolate what a container can *use*. Cgroups prevent a container from consuming all the host's RAM, CPU, or network bandwidth. 
+
+### Architecture Diagram
+```mermaid
+graph TD;
+    A[Host OS<br>/sys/fs/cgroup] -->|Create Directory| B[pycontainer cgroup]
+    B -->|Set memory.max = 50M| C[Memory Limit Active]
+    B -->|Set pids.max = 20| D[Fork Bomb Protection Active]
+    E[Parent Process] -->|Writes Child REAL PID| F[cgroup.procs file]
+    F -->|Kernel Enforces Limits| G[Container Child Process]
+```
+
+### Lessons Learned
+- **Cgroups vs Namespaces**: Namespaces = Isolation (Security/Visibility). Cgroups = Limitation (Resource Management). Together, they form the core of modern containers.
+- **The `/sys/fs/cgroup` Tree**: Linux exposes cgroups as a virtual filesystem. Creating a cgroup is literally as simple as `mkdir /sys/fs/cgroup/my_container`, and modifying its settings is as simple as writing text to a file (`echo 50M > memory.max`).
+- **Parent Responsibility**: The parent process creates the cgroup and adds the child's *real* host PID into `cgroup.procs`. If the child tried to do it itself after `unshare(CLONE_NEWPID)`, it would attempt to write `PID 1` into the cgroups file, which is invalid to the host's cgroup manager! 
+- **Graceful Degeneration**: Cgroups v1 and v2 have slightly different file names (`memory.limit_in_bytes` vs `memory.max`). The OS manages the killing (OOM Killer) if the process exceeds its bounds.
