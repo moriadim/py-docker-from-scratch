@@ -32,10 +32,28 @@ graph TD;
     A[Host Namespace<br>Hostname: host-pc] -->|fork| B[Child Process]
     B -->|unshare CLONE_NEWUTS| C[New UTS Namespace]
     C -->|sethostname| D[Container Environment<br>Hostname: py-contain]
-    D -->|execv /bin/sh| E[Isolated Shell]
+    D -->|execv/bin/sh| E[Isolated Shell]
 ```
 
 ### Lessons Learned
 - **Namespaces Core Concept**: These are a Linux Kernel feature that partitions kernel resources. One group of processes sees one set of resources, while another group sees a totally different set. It's the illusion of a dedicated machine!
 - **unshare() System Call**: This is how we literally detach the current process from the default main namespace and spin up a new isolated one. We hook into the C library's `unshare` via `ctypes`.
 - **Privilege Matters**: Calling `unshare` for UTS and trying to change the hostname requires root access (specifically the `CAP_SYS_ADMIN` capability). Without `sudo`, the kernel outright denies the request to prevent malicious programs from messing with network identities.
+
+## Level 2: PID Namespace (Process Isolation)
+
+PID (Process ID) namespaces isolate the process ID number space. This means that processes inside a container won't see the processes of the host machine (like systemd, your browser, etc.). Inside the container, the first process will believe it is `PID 1`.
+
+### Architecture Diagram
+
+```mermaid
+graph TD;
+    A[Host Namespace<br>PID 3400] -->|unshare CLONE_NEWPID| B[Prepare New PID Namespace]
+    B -->|fork| C[Child Process<br>Real PID: 3401, Container PID: 1]
+    C -->|execv /bin/sh| D[Isolated Shell<br>PID 1 inside]
+```
+
+### Lessons Learned
+- **The Magic of PID 1**: In Linux, PID 1 has special duties (like adopting orphaned processes). When we create a new PID namespace, the first process inside it gets PID 1.
+- **Why unshare *before* fork?**: For the PID namespace specifically, `unshare(CLONE_NEWPID)` doesn't move the calling process into the new namespace (because you can't change your own PID on the fly without breaking things). Instead, it dictates that the *next* child created via `fork` will be born into the new namespace and become PID 1.
+- **Security & Privacy**: Without PID isolation, a container process could send signals (like `kill`) to host processes! Isolating PID namespaces stops this entirely.
