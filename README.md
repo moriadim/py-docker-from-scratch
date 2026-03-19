@@ -8,9 +8,9 @@ This level demonstrates the foundational concept of Linux processes: how a new p
 ### Architecture Diagram
 ```mermaid
 graph TD;
-    A[Parent Process<br>os.fork()] -->|child_pid == 0| B(Child Process)
-    A -->|child_pid > 0| C(Parent waits with os.wait)
-    B -->|os.execv<br>('/bin/sh')| D[New Program: 'sh']
+    A["Parent Process<br>os.fork()"] -->|"child_pid == 0"| B("Child Process")
+    A -->|"child_pid > 0"| C("Parent waits with os.wait")
+    B -->|"os.execv<br>('/bin/sh')"| D["New Program: 'sh'"]
     D -->|Exit| C
 ```
 
@@ -25,10 +25,10 @@ UTS (UNIX Time-sharing System) namespaces isolate two system identifiers: `noden
 ### Architecture Diagram
 ```mermaid
 graph TD;
-    A[Host Namespace<br>Hostname: host-pc] -->|fork| B[Child Process]
-    B -->|unshare CLONE_NEWUTS| C[New UTS Namespace]
-    C -->|sethostname| D[Container Environment<br>Hostname: py-contain]
-    D -->|execv/bin/sh| E[Isolated Shell]
+    A["Host Namespace<br>Hostname: host-pc"] -->|fork| B["Child Process"]
+    B -->|"unshare CLONE_NEWUTS"| C["New UTS Namespace"]
+    C -->|sethostname| D["Container Environment<br>Hostname: py-contain"]
+    D -->|"execv/bin/sh"| E["Isolated Shell"]
 ```
 
 ### Lessons Learned
@@ -42,9 +42,9 @@ PID (Process ID) namespaces isolate the process ID number space. This means that
 ### Architecture Diagram
 ```mermaid
 graph TD;
-    A[Host Namespace<br>PID 3400] -->|unshare CLONE_NEWPID| B[Prepare New PID Namespace]
-    B -->|fork| C[Child Process<br>Real PID: 3401, Container PID: 1]
-    C -->|execv /bin/sh| D[Isolated Shell<br>PID 1 inside]
+    A["Host Namespace<br>PID 3400"] -->|"unshare CLONE_NEWPID"| B["Prepare New PID Namespace"]
+    B -->|fork| C["Child Process<br>Real PID: 3401, Container PID: 1"]
+    C -->|"execv /bin/sh"| D["Isolated Shell<br>PID 1 inside"]
 ```
 
 ### Lessons Learned
@@ -58,11 +58,11 @@ Filesystem isolation is what makes a container feel like a completely separate m
 ### Architecture Diagram
 ```mermaid
 graph TD;
-    A[Host Filesystem<br>/bin, /etc, /usr] -->|unshare CLONE_NEWNS| B[New Mount Namespace]
-    B -->|fork| C[Child Process]
-    C -->|os.chroot| D[Container Root changed<br>to ./rootfs]
-    D -->|libc.mount proc| E[Container Filesystem<br>Own /proc, Own /bin]
-    E -->|execv /bin/sh| F[Isolated Shell]
+    A["Host Filesystem<br>/bin, /etc, /usr"] -->|"unshare CLONE_NEWNS"| B["New Mount Namespace"]
+    B -->|fork| C["Child Process"]
+    C -->|"os.chroot"| D["Container Root changed<br>to ./rootfs"]
+    D -->|"libc.mount proc"| E["Container Filesystem<br>Own /proc, Own /bin"]
+    E -->|"execv /bin/sh"| F["Isolated Shell"]
 ```
 
 ### Lessons Learned
@@ -76,11 +76,11 @@ While namespaces isolate what a container can *see*, Cgroups (Control Groups) is
 ### Architecture Diagram
 ```mermaid
 graph TD;
-    A[Host OS<br>/sys/fs/cgroup] -->|Create Directory| B[pycontainer cgroup]
-    B -->|Set memory.max = 50M| C[Memory Limit Active]
-    B -->|Set pids.max = 20| D[Fork Bomb Protection Active]
-    E[Parent Process] -->|Writes Child REAL PID| F[cgroup.procs file]
-    F -->|Kernel Enforces Limits| G[Container Child Process]
+    A["Host OS<br>/sys/fs/cgroup"] -->|"Create Directory"| B["pycontainer cgroup"]
+    B -->|"Set memory.max = 50M"| C["Memory Limit Active"]
+    B -->|"Set pids.max = 20"| D["Fork Bomb Protection Active"]
+    E["Parent Process"] -->|"Writes Child REAL PID"| F["cgroup.procs file"]
+    F -->|"Kernel Enforces Limits"| G["Container Child Process"]
 ```
 
 ### Lessons Learned
