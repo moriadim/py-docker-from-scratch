@@ -1,0 +1,9 @@
+# Container root filesystem
+rootfs/
+alpine-minirootfs-*.tar.gz
+alpine.tar.gz
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
